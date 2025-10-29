@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "edrive"
+version = "0.0.1"
+description = "Monorepo skeleton for electric drive simulations (boost + PMDC + controllers)"
+readme = "README.md"
+authors = [{ name = "Nguyen Duc Duy" }]
+requires-python = ">=3.10"
+dependencies = [
+"numpy>=1.26",
+"PyYAML>=6.0",
+"matplotlib>=3.8",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "UP"]
