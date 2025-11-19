@@ -140,16 +140,19 @@ class Cascade2SMC:
         # Enforce current limits
         self.i_ref_f = clip(self.i_ref_f, -self.m.I_max, self.m.I_max)
 
-    def _inner_update(self, i_meas: float) -> Tuple[float, Dict[str, float]]:
-        # 2‑SMC (current): returns V command (pre‑saturation)
+    def _inner_update(self, i_meas: float, Vdc_eff: float) -> Tuple[float, Dict[str, float]]:
+        # 2-SMC (current): returns V command (pre-saturation)
         V_cmd, dbg_i = self.smc_i.step(x=i_meas, x_ref=self.i_ref_f, x_ref_dot=self.i_ref_dot)
-        # PWM/saturation
-        V_cmd = clip(V_cmd, -self.m.Vdc, self.m.Vdc)
-        duty = V_cmd / self.m.Vdc
-        return V_cmd, {**dbg_i, 'V_sat': V_cmd, 'duty': duty}
+        # PWM/saturation (support runtime bus-voltage overrides)
+        bus_mag = max(abs(Vdc_eff), 1e-9)
+        V_sat = clip(V_cmd, -bus_mag, bus_mag)
+        duty = V_sat / Vdc_eff if abs(Vdc_eff) > 1e-9 else 0.0
+        return V_sat, {**dbg_i, 'V_raw': V_cmd, 'V_sat': V_sat, 'duty': duty, 'Vdc_eff': Vdc_eff}
 
-    def step(self, i_meas: float, omega_meas: float, omega_ref: float) -> Tuple[float, float, Dict[str, float]]:
-        """Advance one inner‑loop tick (Ts_i). Outer loop runs every N ticks.
+
+    def step(self, i_meas: float, omega_meas: float, omega_ref: float,
+             Vdc_override: float | None = None) -> Tuple[float, float, Dict[str, float]]:
+        """Advance one inner-loop tick (Ts_i). Outer loop runs every N ticks.
         Returns (V_cmd, duty, info).
         """
         info: Dict[str, float] = {}
@@ -159,7 +162,8 @@ class Cascade2SMC:
 
         # Shape i_ref every inner tick and run inner loop
         self._shape_i_ref()
-        V_cmd, dbg_i = self._inner_update(i_meas)
+        Vdc_eff = self.m.Vdc if Vdc_override is None else float(Vdc_override)
+        V_cmd, dbg_i = self._inner_update(i_meas, Vdc_eff)
         info.update({
             'i_ref_f': self.i_ref_f,
             'i_ref_dot': self.i_ref_dot,

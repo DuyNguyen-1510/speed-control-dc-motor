@@ -63,7 +63,7 @@ def main():
     parser.add_argument("--t_drop_end", type=float, default=0.04, help="End time for voltage drop [s]")
     
     # Simulation parameters
-    parser.add_argument("--Ts", type=float, default=10e-7, help="Sampling time [s]")
+    parser.add_argument("--Ts", type=float, default=10e-6, help="Sampling time [s]")
     parser.add_argument("--duration", type=float, default=0.06, help="Simulation duration [s]")
     
     # ST Controller parameters
