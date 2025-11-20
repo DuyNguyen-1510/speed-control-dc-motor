@@ -22,11 +22,11 @@ from edrive.plants.motor.pmdc_state_space import pmdc_ss
 from edrive.controllers.cascade import MotorParams, CascadeConfig, Cascade2SMC
 
 
-def run(total_time: float = 15,
+def run(total_time: float = 8,
         f_pwm: float = 1e3,
-        w_step_time: float = 0.05,
+        w_step_time: float = 2,
         w_target: float = 120.0,
-        TL_step_time: float = 8.0,
+        TL_step_time: float = 4.0,
         TL_val: float = 0.2,
         seed: int | None = None):
     if seed is not None:
@@ -34,8 +34,8 @@ def run(total_time: float = 15,
 
     # ---------- Motor physical parameters (consistent across plant & controller)
     motor = MotorParams(
-        R=1.0, L=5e-3, Kt=0.1, Kb=0.1,
-        J=1e-2, B=1e-3, Vdc=24.0, I_max=10.0,
+        R=0.25, L=0.00224, Kt=0.035, Kb=0.035,
+        J=0.0023, B=0.0005, Vdc=45.0, I_max=22.5,
     )
 
     # ---------- Sampling
@@ -46,9 +46,10 @@ def run(total_time: float = 15,
     cfg = CascadeConfig(
         Ts_i=Ts_i, Ts_w=Ts_w,
         
-        k1_w=10,  k2_w=20, alpha_w=1,
+        k1_w=40,  k2_w=50, alpha_w=1,
 
-        k1_i=50, k2_i=5000, alpha_i=0.5,
+        k1_i=10, k2_i=3000, alpha_i=0.5,
+        
         tau_ir=5*Ts_i,
     )
 

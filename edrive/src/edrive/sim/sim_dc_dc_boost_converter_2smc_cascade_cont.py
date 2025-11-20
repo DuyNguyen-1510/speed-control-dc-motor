@@ -61,8 +61,15 @@ def run(args: argparse.Namespace | None = None) -> None:
     parser = argparse.ArgumentParser(description="Boost + PMDC cascade averaged co-simulation")
 
     # Timing / duration
-    parser.add_argument('--duration', type=float, default=0.06, help='Simulation time [s]')
-    parser.add_argument('--Ts', type=float, default=1e-6, help='Simulation step (shared by boost & motor) [s]')
+    parser.add_argument('--duration', type=float, default=5, help='Simulation time [s]')
+    parser.add_argument('--Ts', type=float, default=1e-4, help='Simulation step (shared by boost & motor) [s]')
+    parser.add_argument('--tau_ir', type=float, default=5e-4, help='Current reference shaper time constant [s]')
+
+    # Motion profile / load torque
+    parser.add_argument('--omega_ref', type=float, default=120.0, help='Target speed [rad/s]')
+    parser.add_argument('--w_step_time', type=float, default=1, help='Time to apply speed command [s]')
+    parser.add_argument('--TL_step_time', type=float, default=3, help='Time to apply load torque [s]')
+    parser.add_argument('--TL_val', type=float, default=0.2, help='Load torque magnitude [N*m]')
 
     # Boost input disturbance
     parser.add_argument('--Vin_nom', type=float, default=24.0, help='Nominal input voltage [V]')
@@ -89,27 +96,25 @@ def run(args: argparse.Namespace | None = None) -> None:
     parser.add_argument('--init_duty', type=float, default=0.4, help='Initial duty guess for boost stage')
 
     # Motor + cascade parameters
-    parser.add_argument('--R_a', type=float, default=1.0, help='Motor armature resistance [Ohm]')
-    parser.add_argument('--L_a', type=float, default=5e-3, help='Motor inductance [H]')
-    parser.add_argument('--Kt', type=float, default=0.1, help='Torque constant [N*m/A]')
-    parser.add_argument('--Kb', type=float, default=0.1, help='Back-emf constant [V*s/rad]')
-    parser.add_argument('--J', type=float, default=1e-2, help='Rotor inertia [kg*m^2]')
-    parser.add_argument('--B', type=float, default=1e-3, help='Viscous friction [N*m*s/rad]')
-    parser.add_argument('--I_max', type=float, default=10.0, help='Peak phase current for saturation [A]')
+    parser.add_argument('--R_a', type=float, default=0.25, help='Motor armature resistance [Ohm]')
+    parser.add_argument('--L_a', type=float, default=0.00224, help='Motor inductance [H]')
+    parser.add_argument('--Kt', type=float, default=0.035, help='Torque constant [N*m/A]')
+    parser.add_argument('--Kb', type=float, default=0.035, help='Back-emf constant [V*s/rad]')
+    parser.add_argument('--J', type=float, default=0.0023, help='Rotor inertia [kg*m^2]')
+    parser.add_argument('--B', type=float, default=0.0005, help='Viscous friction [N*m*s/rad]')
+    parser.add_argument('--I_max', type=float, default=22.5, help='Peak phase current for saturation [A]')
     parser.add_argument('--outer_div', type=float, default=10.0, help='Speed loop period multiplier wrt inner loop')
-    parser.add_argument('--k1_w', type=float, default=10.0, help='Outer SMC k1')
-    parser.add_argument('--k2_w', type=float, default=20.0, help='Outer SMC k2')
+    parser.add_argument('--k1_w', type=float, default=40.0, help='Outer SMC k1')
+    parser.add_argument('--k2_w', type=float, default=50.0, help='Outer SMC k2')
     parser.add_argument('--alpha_w', type=float, default=1.0, help='Outer boundary layer width')
-    parser.add_argument('--k1_i', type=float, default=50.0, help='Inner SMC k1')
-    parser.add_argument('--k2_i', type=float, default=5000.0, help='Inner SMC k2')
+    parser.add_argument('--k1_i', type=float, default=10.0, help='Inner SMC k1')
+    parser.add_argument('--k2_i', type=float, default=3000.0, help='Inner SMC k2')
     parser.add_argument('--alpha_i', type=float, default=0.5, help='Inner boundary layer width')
-    parser.add_argument('--tau_ir', type=float, default=5e-6, help='Current reference shaper time constant [s]')
 
-    # Motion profile / load torque
-    parser.add_argument('--omega_ref', type=float, default=120.0, help='Target speed [rad/s]')
-    parser.add_argument('--w_step_time', type=float, default=0.02, help='Time to apply speed command [s]')
-    parser.add_argument('--TL_step_time', type=float, default=0.12, help='Time to apply load torque [s]')
-    parser.add_argument('--TL_val', type=float, default=0.2, help='Load torque magnitude [N*m]')
+
+
+
+
 
     # Load reflection tuning
     parser.add_argument('--R_load_init', type=float, default=100.0, help='Initial equivalent load [Ohm]')
@@ -221,6 +226,7 @@ def run(args: argparse.Namespace | None = None) -> None:
         # !!! cần tìm cách để controller boost converter ổn định trước thay đổi của
         # tải 
         load_state['R'] = R_eff
+        print(R_eff)
 
         # khi tải cố định 100 Om thì controller boost converter hoạt động bình tốt
         # load_state['R'] = 100
@@ -244,7 +250,7 @@ def run(args: argparse.Namespace | None = None) -> None:
             print(f"t={t:.4f}s Vbus={V_bus:.2f}V Vin={vin:.2f}V d_boost={duty_boost:.3f} ω={omega:.1f} rad/s")
 
     # Plot results
-    fig, axs = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+    fig, axs = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
     axs[0].plot(t_log, Vbus_log, label='V_bus')
     axs[0].hlines(args.Vref_bus, t_log[0], t_log[-1], colors='k', linestyles='--', label='V_ref')
     axs[0].plot(t_log, vin_log, label='V_in')
@@ -256,16 +262,10 @@ def run(args: argparse.Namespace | None = None) -> None:
     axs[1].set_ylabel('Speed [rad/s]')
     axs[1].legend(); axs[1].grid(True)
 
-    axs[2].plot(t_log, duty_boost_log, label='d_boost')
-    axs[2].plot(t_log, duty_motor_log, label='d_motor')
-    axs[2].set_ylabel('Duty')
+    axs[2].plot(t_log, TL_log, label='T_L')
+    axs[2].set_ylabel('Torque [N*m]')
+    axs[2].set_xlabel('Time [s]')
     axs[2].legend(); axs[2].grid(True)
-
-    axs[3].plot(t_log, i_arm_log, label='i_arm')
-    axs[3].plot(t_log, iL_log, label='iL_boost')
-    axs[3].set_ylabel('Current [A]')
-    axs[3].set_xlabel('Time [s]')
-    axs[3].legend(); axs[3].grid(True)
 
     plt.tight_layout()
     plt.show()
@@ -273,5 +273,4 @@ def run(args: argparse.Namespace | None = None) -> None:
 
 if __name__ == '__main__':
     run()
-
 
